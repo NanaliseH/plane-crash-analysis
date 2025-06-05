@@ -1,0 +1,126 @@
+---
+title: "Plane Crashes Data Analysis"
+author: "Nanalise Howe"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Load requires libraries
+
+```{r}
+library(readr)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+
+
+# Loading Data
+```{r}
+crashes <- read_csv("aircraft_crash_data.csv")
+
+# quick look at structure
+glimpse(crashes)
+summary(crashes)
+```
+
+
+# Data Cleaning and Preparation
+# Convert accident date to Date format, extract Year, and convert fatalities to numeric
+```{r}
+crashes <- crashes %>%
+  mutate(Date = as.Date(`acc. date`, format = "%d-%b-%y")) %>%
+  mutate(Year = year(Date)) %>%
+  mutate(fat. = na_if(fat., "")) %>%
+  mutate(fat. = as.numeric(fat.)) %>%
+  filter(!is.na(Year) & Year >= 1900 & Year <= 2024)
+```
+
+
+# Remove rows with missing key info columns
+# Calculate total crashes and fataliteis, average fatalities per crash
+
+```{r}
+key_cols <- c("acc. date", "type", "reg.", "operator", "fat.", "location", "dmg")
+crashes_clean <- crashes[complete.cases(crashes[, key_cols]), ]
+
+summary(crashes_clean)
+```
+
+# Summary Statistics
+
+```{r}
+summary_stats <- crashes_clean %>%
+  summarise(
+    total_crashes = n(),
+    total_fatalities = sum(fat., na.rm = TRUE),
+    avg_fatalities_per_crash = mean(fat., na.rm = TRUE)
+  )
+
+summary_stats
+```
+
+
+# Create crashes per year
+
+```{r}
+crashes_per_year <- crashes_clean %>%
+  group_by(Year) %>%
+  summarise(
+    crashes = n(),
+    fatalities = sum(fat., na.rm = TRUE)
+  )
+
+```
+
+# Plotcrashes and fatalities trend
+
+```{r}
+
+library(ggplot2)
+
+ggplot(crashes_per_year, aes(x = Year)) +
+  geom_line(aes(y = crashes), color = "blue", size = 1) +
+  geom_line(aes(y = fatalities), color = "red", size = 1) +
+  labs(title = "Crashes and Fatalities per Year",
+       y = "Count",
+       x = "Year",
+       caption = "Blue = Crashes, Red = Fatalities") +
+  theme_minimal()
+
+```
+
+# Crashes by Aircraft Type
+```{r}
+crashes_by_type <- crashes_clean %>%
+  group_by(type) %>%
+  summarise(
+    crashes = n(),
+    fatalities = sum(fat., na.rm = TRUE)
+  ) %>%
+  arrange(desc(crashes))
+
+# Show top 10 aircraft types by number of crashes
+head(crashes_by_type, 10)
+```
+# Top Operators by Fatalities
+```{r}
+# Summarize crashes and fatalities by operator
+top_operators <- crashes_clean %>%
+  group_by(operator) %>%
+  summarise(
+    crashes = n(),
+    fatalities = sum(fat., na.rm = TRUE)
+  ) %>%
+  arrange(desc(fatalities)) %>%
+  head(10)
+
+top_operators
+
+```
+
